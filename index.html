@@ -17,13 +17,14 @@
 </head>
 <body>
 
-    <div id="login-box">
+    <div id="ip-box">
         <h2>Enter Remote IP Address</h2>
+        <h3 id="abc"></h3>
         <input type="text" id="ip" placeholder="IP">
-        <button onclick="let IP = document.getElementById('ip').value">Set IP</button>
+        <button onclick="setIp()">Set IP</button>
     </div>
     
-    <div id="ip-box">
+    <div id="login-box">
         <h2>Enter Remote Password</h2>
         <input type="password" id="password" placeholder="Password">
         <button onclick="connectToServer()">Connect</button>
@@ -47,6 +48,10 @@
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         };
 
+        function setIp() {
+            let IP = document.getElementById('ip').value
+            document.getElementById('abc').text = "Connecting to: "+"ws://"+IP+":5555"
+        }
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
