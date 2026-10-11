@@ -6,6 +6,7 @@
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #111; font-family: Arial, sans-serif; color: #fff; }
         #login-box { text-align: center; margin-top: 100px; }
+        #ip-box { text-align: center; margin-top: 200px; }
         input, button { padding: 12px; font-size: 16px; margin: 5px; border-radius: 4px; border: none; }
         input { background: #333; color: #fff; }
         button { background: #007bff; color: white; cursor: pointer; }
@@ -17,11 +18,17 @@
 <body>
 
     <div id="login-box">
+        <h2>Enter Remote IP Address</h2>
+        <input type="text" id="ip" placeholder="IP">
+        <button onclick="let IP = document.getElementById('ip').value">Set IP</button>
+    </div>
+    
+    <div id="ip-box">
         <h2>Enter Remote Password</h2>
         <input type="password" id="password" placeholder="Password">
         <button onclick="connectToServer()">Connect</button>
     </div>
-
+    
     <div id="control-area">
         <div id="instructions">Click anywhere to capture inputs. Press 'Esc' to exit.</div>
         <canvas id="canvas"></canvas>
@@ -47,7 +54,7 @@
 
         function connectToServer() {
             const password = document.getElementById('password').value;
-            ws = new WebSocket("ws://localhost:5555");
+            ws = new WebSocket("ws://"+IP+":5555");
 
             ws.onopen = () => {
                 ws.send(JSON.stringify({ type: "auth", password: password }));
