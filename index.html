@@ -2,66 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Remote Controller</title>
+    <title>Web Remote Controller with Screen Share</title>
     <style>
-        /* Reset margins and hidden overflow to ensure full-screen capability */
-        html, body { 
-            margin: 0; 
-            padding: 0; 
-            width: 100%; 
-            height: 100%; 
-            overflow: hidden; 
-            background: #111; 
-            font-family: Arial, sans-serif; 
-            color: #fff; 
-        }
-        
-        #login-box { 
-            text-align: center; 
-            margin-top: 100px; 
-        }
-        
-        input, button { 
-            padding: 12px; 
-            font-size: 16px; 
-            margin: 5px; 
-            border-radius: 4px; 
-            border: none; 
-        }
-        
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #111; font-family: Arial, sans-serif; color: #fff; }
+        #login-box { text-align: center; margin-top: 100px; }
+        input, button { padding: 12px; font-size: 16px; margin: 5px; border-radius: 4px; border: none; }
         input { background: #333; color: #fff; }
         button { background: #007bff; color: white; cursor: pointer; }
-        button:hover { background: #0056b3; }
-
-        #control-area {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: none;
-        }
-
-        /* Instructions overlay that fades out once pointer is locked */
-        #instructions {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7);
-            padding: 10px 20px;
-            border-radius: 20px;
-            pointer-events: none; /* Allows clicks to pass through to canvas */
-            z-index: 10;
-            transition: opacity 0.3s ease;
-        }
-
-        /* Canvas fills up 100% of the browser layout window */
-        #canvas { 
-            width: 100%; 
-            height: 100%; 
-            display: block;
-            cursor: pointer; 
-        }
+        #control-area { position: relative; width: 100%; height: 100%; display: none; }
+        #instructions { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.7); padding: 10px 20px; border-radius: 20px; pointer-events: none; z-index: 10; transition: opacity 0.3s ease; }
+        #canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -73,16 +23,23 @@
     </div>
 
     <div id="control-area">
-        <div id="instructions">Click anywhere to capture inputs. Press 'Esc' to exit full screen.</div>
+        <div id="instructions">Click anywhere to capture inputs. Press 'Esc' to exit.</div>
         <canvas id="canvas"></canvas>
     </div>
 
     <script>
         let ws;
         const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
         const instructions = document.getElementById('instructions');
+        const img = new Image();
 
-        // Dynamically resize internal canvas resolution buffer to match screen
+        // When a new frame image loads, paint it onto the browser canvas canvas
+        img.onload = function() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        };
+
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -90,7 +47,6 @@
 
         function connectToServer() {
             const password = document.getElementById('password').value;
-            
             ws = new WebSocket("ws://localhost:5555");
 
             ws.onopen = () => {
@@ -99,58 +55,41 @@
 
             ws.onmessage = (event) => {
                 const response = JSON.parse(event.data);
+                
                 if (response.status === "authenticated") {
                     document.getElementById('login-box').style.display = 'none';
                     document.getElementById('control-area').style.display = 'block';
-                    
                     resizeCanvas();
                     window.addEventListener('resize', resizeCanvas);
                     setupInputCapturing();
-                } else {
-                    alert("Authentication failed: " + response.message);
-                    ws.close();
+                } else if (response.type === "screen_frame") {
+                    // Update image source pointer with the incoming Base64 image payload
+                    img.src = "data:image/jpeg;base64," + response.image;
                 }
             };
         }
 
         function setupInputCapturing() {
-            // Trigger actual HTML5 browser fullscreen + pointer lock on click
             canvas.addEventListener('click', () => {
                 if (document.fullscreenElement === null) {
-                    document.documentElement.requestFullscreen().catch(err => {
-                        console.log("Error attempting full-screen:", err);
-                    });
+                    document.documentElement.requestFullscreen().catch(() => {});
                 }
                 canvas.requestPointerLock();
             });
 
-            // Toggle visibility of the text instruction overlay based on mouse capture state
             document.addEventListener('pointerlockchange', () => {
-                if (document.pointerLockElement === canvas) {
-                    instructions.style.opacity = "0"; // hide instruction banner when locked
-                } else {
-                    instructions.style.opacity = "1"; // show instruction banner when unlocked
-                }
+                instructions.style.opacity = (document.pointerLockElement === canvas) ? "0" : "1";
             });
 
-            // Capture Mouse Movements
             document.addEventListener('mousemove', (e) => {
                 if (document.pointerLockElement === canvas) {
-                    ws.send(JSON.stringify({
-                        type: "mouse_move",
-                        dx: e.movementX,
-                        dy: e.movementY
-                    }));
+                    ws.send(JSON.stringify({ type: "mouse_move", dx: e.movementX, dy: e.movementY }));
                 }
             });
 
-            // Capture Keyboard Presses
             document.addEventListener('keydown', (e) => {
                 if (document.pointerLockElement === canvas) {
-                    ws.send(JSON.stringify({
-                        type: "key_press",
-                        key: e.key
-                    }));
+                    ws.send(JSON.stringify({ type: "key_press", key: e.key }));
                 }
             });
         }
