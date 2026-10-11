@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Web Remote Controller</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #222; color: #fff; margin-top: 50px; }
+        #canvas { border: 2px dashed #555; background: #111; cursor: pointer; display: none; }
+        #login-box { margin-bottom: 20px; }
+        input, button { padding: 10px; font-size: 16px; margin: 5px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-box">
+        <h2>Enter Remote Password</h2>
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="connectToServer()">Connect</button>
+    </div>
+
+    <div id="control-area" style="display:none;">
+        <h3>Click inside the box to capture inputs. Press 'Esc' to exit.</h3>
+        <canvas id="canvas" width="800" height="600"></canvas>
+    </div>
+
+    <script>
+        let ws;
+        const canvas = document.getElementById('canvas');
+
+        function connectToServer() {
+            const password = document.getElementById('password').value;
+            
+            // Connect to your backend python WebSocket server
+            ws = new WebSocket("ws://localhost:5555");
+
+            ws.onopen = () => {
+                // Step 1: Immediately send password for verification upon connecting
+                ws.send(JSON.stringify({ type: "auth", password: password }));
+            };
+
+            ws.onmessage = (event) => {
+                const response = JSON.parse(event.data);
+                if (response.status === "authenticated") {
+                    document.getElementById('login-box').style.display = 'none';
+                    document.getElementById('control-area').style.display = 'block';
+                    setupInputCapturing();
+                } else {
+                    alert("Authentication failed: " + response.message);
+                    ws.close();
+                }
+            };
+        }
+
+        function setupInputCapturing() {
+            // Lock pointer when user clicks the canvas to capture absolute mouse movement
+            canvas.addEventListener('click', () => {
+                canvas.requestPointerLock();
+            });
+
+            // Capture Mouse Movements
+            document.addEventListener('mousemove', (e) => {
+                if (document.pointerLockElement === canvas) {
+                    // Send relative coordinates (deltas) because absolute screen pixels 
+                    // cannot be tracked reliably inside a browser window.
+                    ws.send(JSON.stringify({
+                        type: "mouse_move",
+                        dx: e.movementX,
+                        dy: e.movementY
+                    }));
+                }
+            });
+
+            // Capture Keyboard Presses
+            document.addEventListener('keydown', (e) => {
+                if (document.pointerLockElement === canvas) {
+                    ws.send(JSON.stringify({
+                        type: "key_press",
+                        key: e.key
+                    }));
+                }
+            });
+        }
+    </script>
+</body>
+</html>
