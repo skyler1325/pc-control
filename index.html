@@ -47,7 +47,7 @@
 
         function connectToServer() {
             const password = document.getElementById('password').value;
-            ws = new WebSocket("ws://localhost:6666");
+            ws = new WebSocket("ws://localhost:5555");
 
             ws.onopen = () => {
                 ws.send(JSON.stringify({ type: "auth", password: password }));
